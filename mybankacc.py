@@ -2,8 +2,6 @@ import sys
 import library
 from sqlite3 import Error, connect
 from random import randrange
-#from sqlite3 import Error, connect, cursor
-#^ imports sqlite and Error class from that library
 
 def create_connection(path):
     #^Defines function that accepts a path to a sql database
@@ -59,64 +57,67 @@ class BankManager:
 
         print(new_account)
         execute_query(self.connection, new_account)
-
-    #def showallBalances(self):
-        #shows all amounts in BALANCE
-        #select_account = "SELECT * FROM Accounts;"
-        #account = execute_read_query(self.connection, select_account)
-        
-        #select_ID = execute_read_query(self.connection, "SELECT ACCOUNTNUM from Accounts")
-        #select_bal = execute_read_query(self.connection, "SELECT BALANCE from Accounts")
-        #psudoshow = "ID:" + select_ID + "|" + "Balance:" + select_bal
-        #print(select_ID)
-        #print(select_bal)
-        
-        #for acct in psudoshow:
-           # print(acct)
+    
+    # showallbalances is an admin command. Users cannot use it.
     def showallBalances(self):
         IDs = execute_read_query(self.connection, "SELECT ACCOUNTNUM from Accounts")
         Balances = execute_read_query(self.connection, "SELECT BALANCE from Accounts")
 
-        #for ID in IDs:
-            # Not pretty, but it works
-            #tempID = str(ID).replace(",","").replace("(","").replace(")","")
+        # Arrays used to store 'clean' strings
+        n1 = []
+        n2 = []
 
-            #cleanID = "ACCTNUM:" + tempID
-            #print(cleanID)
-        
-        # This throws duplicate IDs with repeating balances!
-        for ID in IDs:
-            for Bal in Balances:
-                cleanID = str(ID).replace(",","").replace("(","").replace(")","")
-                cleanBal = str(Bal).replace(",","").replace("(","").replace(")","")
-                print("ACCTNUM|"+ cleanID + "|" + "Balance|" + cleanBal)
+        # Local functions that will later become public/class functions
+        def cleanlist(array1, array2, customstr):
+            for element in array1:
+                array2.append(customstr + str(element).replace(",","").replace("(","").replace(")",""))
+                
+        def display(array1, array2):
+            x = 0
+            y = 0
+            while x < len(array1) and y < len(array2):
+                print(array1[x], "", array2[y])
+                x += 1
+                y += 1
 
-    def withdraw(self):
-        acctnum = input("Insert your account number. >>> ")
-        retiro = input("What ammount are you withdrawing? >>> ")
-        print("One moment please.")
+        cleanlist(IDs, n1, "ACCTNUM:")
+        cleanlist(Balances, n2, "Balance:")
 
-        update_account_balance = ("""
+        display(n1, n2)
+    
+    def autoMatic(self, option):
+        acctnum = input("Which account? >>> ")
+        mal_amount = input("What amount? >>> ")
+        print("one moment")
+
+        choice = ""
+
+        if option == "W":
+            choice = "-"
+        elif option == "D":
+            choice = "+"
+        else:
+            print("u w0t m8?")
+            return
+
+        update_acct_bal = ("""
         UPDATE
             Accounts
         SET
-            BALANCE=(BALANCE-%s)
+            BALANCE=(BALANCE %s %s)
         WHERE
             ACCOUNTNUM = %s
-        """ % (retiro, acctnum))
+        """ % (choice, mal_amount, acctnum))
 
-        execute_query(self.connection, update_account_balance)
+        # In the future an implementation to prevent overdrafting is needed
+        execute_query(self.connection, update_acct_bal)
 
-        select_account_balance = ("SELECT BALANCE FROM Accounts WHERE ACCOUNTNUM = %s;" % (acctnum))
+        new_bal = execute_read_query(self.connection, "SELECT BALANCE FROM Accounts WHERE ACCOUNTNUM = %s;" % acctnum)
 
-        new_balance = execute_read_query(self.connection, select_account_balance)
-
-        for balance in new_balance:
-            print("Your account, whose number is %s, now has a balance of: %s" % (acctnum, balance))
-
-    def deposit(self):
-        return
-
+        for balance in new_bal:
+            neobal = str(balance).replace("(", "").replace(")", "").replace(",", "")
+            print("Your account, whose number is %s, now has a balance of: %s" % (acctnum, neobal))
+        
     def myhelp(self):
         print(library.strings["HP"])
 
@@ -179,7 +180,8 @@ def input_taker():
         for c in library.commands:
             if cmd.upper() == c:
                 #Thank God for the getattr function. It feeds a string into an object, as if I'm calling a module
-                result = getattr(steve, library.commands[c])()
+                #result = getattr(steve, library.commands[c])()
+                eval("steve.%s" % library.commands[c])
         #else:
             #Why is is printing a million times?
             #print("I don't understand what that means")
