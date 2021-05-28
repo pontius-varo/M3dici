@@ -43,50 +43,53 @@ class BankManager:
         self.connection = connection
 
     def newAccount(self):
-        #name = input("Insert your name >>> ") <-- add to line 55 "NAME"
+        # owner name should be automatic, maybe?
+        name = input("Insert your name >>> ")
+        # There should be a if statement to determine account type..
+        acct_type = input("What type of account would you like to open? >>> ")
         balance = input("Insert your balance >>> ")
         print("Give me a moment while I generate your account")
         newnum = TinyPassMaker()
         num = newnum.junta(newnum.neochar_add())
-        new_account = ("""
-        INSERT INTO
-            Accounts (ACCOUNTNUM, BALANCE)
-        VALUES
-            (%s, %s)
-        """ % (num, balance))
 
-        print(new_account)
+        new_account = (library.sqlite_cmds["NEWACCT"] % (name, acct_type, balance, num))
+
         execute_query(self.connection, new_account)
     
     # showallbalances is an admin command. Users cannot use it.
+    # Fork this function in order to create a regular user function
     def showallBalances(self):
-        IDs = execute_read_query(self.connection, "SELECT ACCOUNTNUM from Accounts")
+        IDs = execute_read_query(self.connection, "SELECT ACCTID from Accounts")
         Balances = execute_read_query(self.connection, "SELECT BALANCE from Accounts")
-
+        ownernames = execute_read_query(self.connection, "SELECT OWNER from Accounts")
+        types = execute_read_query(self.connection, "SELECT TYPE from Accounts")
         # Arrays used to store 'clean' strings
+        # There should be a better way to do this! Maybe just clean up each string returned?
         n1 = []
         n2 = []
+        n3 = []
+        n4 = []
 
         # Local functions that will later become public/class functions
         def cleanlist(array1, array2, customstr):
             for element in array1:
-                array2.append(customstr + str(element).replace(",","").replace("(","").replace(")",""))
+                array2.append(customstr + str(element).replace(",","").replace("(","").replace(")","").replace("\'", ""))
                 
-        def display(array1, array2):
+        def display(array1, array2, array3, array4):
             x = 0
-            y = 0
-            while x < len(array1) and y < len(array2):
-                print(array1[x], "", array2[y])
+            while x < len(array1):
+                print(array1[x], "  ", array2[x], "  ", array3[x], "  ", array4[x])
                 x += 1
-                y += 1
 
-        cleanlist(IDs, n1, "ACCTNUM:")
-        cleanlist(Balances, n2, "Balance:")
-
-        display(n1, n2)
+        cleanlist(ownernames, n1, "Name: ")
+        cleanlist(types, n2, "Type: ")
+        cleanlist(Balances, n3, "Balance:")
+        cleanlist(IDs, n4, "ACCTID:")
+        
+        display(n1, n2, n3, n4)
     
     def autoMatic(self, option):
-        acctnum = input("Which account? >>> ")
+        acctid = input("Which account? >>> ")
         mal_amount = input("What amount? >>> ")
         print("one moment")
 
@@ -100,23 +103,16 @@ class BankManager:
             print("u w0t m8?")
             return
 
-        update_acct_bal = ("""
-        UPDATE
-            Accounts
-        SET
-            BALANCE=(BALANCE %s %s)
-        WHERE
-            ACCOUNTNUM = %s
-        """ % (choice, mal_amount, acctnum))
+        update_acct_bal = (library.sqlite_cmds["UPDATE"] % (choice, mal_amount, acctid))
 
         # In the future an implementation to prevent overdrafting is needed
         execute_query(self.connection, update_acct_bal)
 
-        new_bal = execute_read_query(self.connection, "SELECT BALANCE FROM Accounts WHERE ACCOUNTNUM = %s;" % acctnum)
+        new_bal = execute_read_query(self.connection, library.sqlite_cmds["GETACCTBAL"] % acctid)
 
         for balance in new_bal:
             neobal = str(balance).replace("(", "").replace(")", "").replace(",", "")
-            print("Your account, whose number is %s, now has a balance of: %s" % (acctnum, neobal))
+            print("Your account, whose number is %s, now has a balance of: %s" % (acctid, neobal))
         
     def myhelp(self):
         print(library.strings["HP"])
@@ -179,12 +175,10 @@ def input_taker():
         #Fetch command list from library
         for c in library.commands:
             if cmd.upper() == c:
-                #Thank God for the getattr function. It feeds a string into an object, as if I'm calling a module
-                #result = getattr(steve, library.commands[c])()
+                # Using eval() until I can figure out a better way to do this
                 eval("steve.%s" % library.commands[c])
         #else:
             #Why is is printing a million times?
             #print("I don't understand what that means")
-
 
 input_taker()
